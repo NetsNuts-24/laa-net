@@ -1,0 +1,84 @@
+{
+ "counts": {
+  "train": {
+   "videos": 16,
+   "frames": 2048,
+   "min_frames": 128,
+   "landmark_items": 2048,
+   "no_landmarks": 60
+  },
+  "val": {
+   "videos": 8,
+   "frames": 256,
+   "min_frames": 32,
+   "landmark_items": 256,
+   "no_landmarks": 1
+  }
+ },
+ "times": {
+  "crop train (s)": 782.1,
+  "crop val (s)": 125.6,
+  "landmarks train (s)": 84.0,
+  "landmarks val (s)": 12.3,
+  "train job f64 (s)": 442.3,
+  "train job f32 (s)": 191.1
+ },
+ "peak_gpu_mem_mib": {
+  "f64": 14887,
+  "f32": 13655
+ },
+ "exit_codes": {
+  "f64": 1,
+  "f32": 0
+ },
+ "variants": {
+  "f64": {
+   "out_of_memory": true,
+   "train_steps_per_epoch_here": 48,
+   "frozen": {
+    "train_step_s": 7.895,
+    "of_which_data_wait_s": 0.005,
+    "val_step_s": 2.472,
+    "train_lines": 9,
+    "val_lines": 7
+   },
+   "unfrozen": {
+    "train_step_s": null,
+    "of_which_data_wait_s": null,
+    "val_step_s": null,
+    "train_lines": 0,
+    "val_lines": 0
+   }
+  },
+  "f32": {
+   "out_of_memory": false,
+   "train_steps_per_epoch_here": 48,
+   "frozen": {
+    "train_step_s": 0.844,
+    "of_which_data_wait_s": 0.005,
+    "val_step_s": 0.31,
+    "train_lines": 9,
+    "val_lines": 7
+   },
+   "unfrozen": {
+    "train_step_s": 2.216,
+    "of_which_data_wait_s": 0.005,
+    "val_step_s": 0.309,
+    "train_lines": 9,
+    "val_lines": 7
+   },
+   "projection": {
+    "hours_per_frozen_epoch": 0.18,
+    "hours_per_unfrozen_epoch": 0.46,
+    "hours_100_epochs": 43.9
+   }
+  }
+ },
+ "preparation": {
+  "crop_s_per_train_video_128f": 48.9,
+  "crop_hours_720_train_videos_one_gpu": 9.8,
+  "crop_hours_140_val_videos_one_gpu": 0.61,
+  "landmark_s_per_image": 0.041,
+  "landmark_hours_92160_train_images_one_core": 1.1
+ }
+}

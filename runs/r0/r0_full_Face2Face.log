@@ -1,0 +1,16 @@
+Flip Test is used --- True
+Turning on evaluation mode...
+Loading weight ... /kaggle/working/weights/PoseEfficientNet_EFN_hm10_EFPN_NoBasedCLS_Focal_C3_256Cst100_8SBI_SAM(Adam)_ADV_Era1_OutSigmoid_1e7_boost500_UnFZ_model_best.pth
+Using metric-base binary for evaluation!
+Video level evaluation mode: True
+/kaggle/working/env/lib/python3.8/site-packages/torch/utils/data/dataloader.py:474: UserWarning: This DataLoader will create 7 worker processes in total. Our suggested max number of worker in current system is 4, which is smaller than what this DataLoader is going to create. Please be aware that excessive worker creation might get DataLoader running slow or even freeze, lower the worker number to avoid potential slowness/freeze if necessary.
+warnings.warn(_create_warning_msg(
+Dataset loading time --- 0.07907390594482422
+Constructing the heatmap Decoder!
+8960 image paths have been loaded from FF++!
+Running sampler...
+n samples after running sampling --- 8960
+
+100%|██████████| 1120/1120 [53:34<00:00, 2.87s/it]
+100%|██████████| 1120/1120 [53:34<00:00, 2.87s/it]
+Current ACC, AUC, AP, AR, mF1 for ['original', 'Face2Face'] --- ['real', 'fake'] -- 73.21428571428571 -- 87.42857142857142 -- 88.26718299171175 -- 73.21428571428572 -- 80.03913769840896
