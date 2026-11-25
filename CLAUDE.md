@@ -183,6 +183,10 @@ FF++ validation split (not on test).
   both variants train 2 epochs (epoch 0 identical, epoch 1 differs), checkpoints load, test script
   runs. **Nothing has run on the faculty machine yet**; GPU, 7-worker loading, RetinaFace and dlib
   there are untested.
+- **GPU sharing (D034):** the faculty GPUs are shared with the temporal branch's training. Every
+  script takes `GPUS` (default `0 1`), e.g. `GPUS=1 bash 03_train.sh full control`. The two R1 runs
+  may start at different times on different GPUs. `run_night.sh` chains prepare → port check
+  (stops if an AUC is more than 1.0 from R0) → trial → full R1-control on one GPU, unattended.
 - **USB bundle:** `to_faculty/` (scripts, dlib file, released SBI weights, README, manifest; 455 MB),
   rebuilt with `python tools/make_faculty_bundle.py` after any script change.
 - Downloads on the faculty machine (RetinaFace 96.9 MB, AdvProp 78 MB) approved 2026-11-25 (D032).

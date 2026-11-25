@@ -23,8 +23,7 @@ if [ ! -d "$T" ]; then clean_copy "$T"; python "$TOOL" patch "$T" test; git -C "
 
 LOGS="$RUNS/port_check"
 test_weights released "$W" "$T" "$LOGS"
-python "$TOOL" summarize "$LOGS" "$LOGS/results.json" --compare-r0
-echo
-echo "Expected: every AUC within about 0.5 of R0. A bigger gap means the crops, the environment or"
-echo "float32 changed the model's behaviour and must be understood before training."
+# Stops here (exit code 1) if any AUC is more than 1.0 away from R0: then the crops, the environment
+# or float32 changed the model's behaviour and that must be understood before training.
+python "$TOOL" summarize "$LOGS" "$LOGS/results.json" --compare-r0 --max-diff 1.0
 echo "PORT CHECK FINISHED. Send check_port.log (or the table above) back."

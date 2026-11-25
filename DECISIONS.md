@@ -684,6 +684,40 @@ per step, so the 4 CPU cores are not the limit.
   Rejected: copying the files in (licence, and edits would be mixed with ours); ignoring the folder
   (the commit would only be written in prose).
 
+### D034 — 2026-11-25 — One GPU at a time: scripts take a GPU list (amends D029)
+- **Why:** the user reports both faculty GPUs are busy with the temporal branch's training: GPU 1
+  is free from about 22:00, GPU 0 from about 05:00–06:00 the next morning. The bundle was already
+  copied to the machine; no step had been run.
+- **Amends D029:** the two R1 runs no longer have to start together or sit on fixed GPUs. They are
+  independent processes with the same code base, config, seed and data, so start time and GPU
+  index do not affect the comparison. Everything else in D029 and D031 stands.
+- **Script changes (`faculty/`):**
+  - every script reads `GPUS` (default `0 1`), e.g. `GPUS=1 bash …`; a GPU that does not exist stops it;
+  - `01_prepare_data.sh`: with one GPU the crop jobs run one after the other, short ones first;
+  - `common.sh` test queue and `03_train.sh smoke`: sequential on one GPU, side by side on two;
+  - `03_train.sh <smoke|full> [control|fixed|both]`: one variant can be started alone;
+    `full both` on a single GPU is refused; starting a run twice is refused;
+  - `02_check_port.sh` now stops with an error if any AUC is more than 1.0 from R0 (D022). The
+    limit 1.0 is my choice, not derived from anything;
+  - new `run_night.sh`: prepare data → port check → 2-epoch trial of R1-control → full R1-control,
+    stopping at the first failure. **Trade-off:** it replaces my reading of each log between steps
+    with these automatic checks; the data-preparation log is not judged automatically. Worst case
+    is one wasted control run;
+  - `00_setup_env.sh`: `GPUS=none` skips the GPU speed check; the check no longer fails the setup
+    when a card is full; it asserts the PyTorch build lists `sm_120` (RTX 50-series);
+  - `set +u` around conda activation in all scripts (conda's own hooks can fail under `set -u`).
+- **Tested here (simulation: stub `conda`, `nvidia-smi` and GPU jobs; real bash flow and real helper
+  tool):** one GPU trial of both variants runs them one after the other on the given GPU; two GPUs
+  side by side; `full both` on one GPU refused; control on GPU 1 then fixed on GPU 0 started
+  separately, with the config-identity check; second start refused; unknown GPU refused; port check
+  sequential and parallel; the 1.0 limit passes close numbers and stops on a far one.
+  `run_night.sh` and `01_prepare_data.sh` themselves could not be simulated (they need the real
+  crop tools); they are syntax-checked only.
+- **Bundle rebuilt:** `to_faculty/` now has 12 files; the two large files are unchanged, so only the
+  small ones (`*.sh`, `laa_r1.py`, `README.txt`, `MANIFEST.sha256`) need copying again.
+- **Not committed yet:** these changes are in the working tree only (repo from D033). A leftover
+  one-off helper `tools/_edit_gpus.py` should be deleted, not committed.
+
 ---
 
 ## Open

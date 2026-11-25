@@ -212,6 +212,7 @@ R0 = {'all_asis': (94.93, 94.34), 'all_unique': (89.07, 97.07), 'Deepfakes': (95
 
 def cmd_summarize(a):
     rows = {}
+    worst = 0.0
     for f in sorted(glob.glob(os.path.join(a.logs, 'test_*.log'))):
         tag = os.path.basename(f)[len('test_'):-len('.log')]
         m = None
@@ -227,11 +228,20 @@ def cmd_summarize(a):
         key = tag.split('.')[-1]
         if a.compare_r0 and key in R0:
             line += f'   | R0 (D022) AUC {R0[key][0]:.2f}  AP {R0[key][1]:.2f}   diff AUC {auc - R0[key][0]:+.2f}'
+            worst = max(worst, abs(auc - R0[key][0]))
         print(line)
     json.dump(rows, open(a.out, 'w'), indent=1)
     print('saved', a.out)
     if any(v is None for v in rows.values()) or not rows:
         sys.exit('some test jobs have no result')
+    if a.compare_r0:
+        if len(rows) != len(R0):
+            sys.exit(f'expected {len(R0)} test jobs, found {len(rows)}')
+        print(f'largest AUC difference from R0: {worst:.2f}')
+        if a.max_diff is not None and worst > a.max_diff:
+            sys.exit(f'PORT CHECK NOT PASSED: an AUC differs from R0 by more than {a.max_diff}')
+        if a.max_diff is not None:
+            print(f'PORT CHECK PASSED (limit {a.max_diff})')
 
 
 STEP = re.compile(r'Epoch: \[(\d+)\]\[(\d+)/(\d+)\]\s+Time ([\d.]+)s \(([\d.]+)s\)\s+Speed [\d.]+ samples/s\s+Data ([\d.]+)s')
@@ -284,6 +294,7 @@ def main():
     p = sub.add_parser('probe'); p.add_argument('cfg'); p.add_argument('variant', choices=['control', 'fixed'])
     p.set_defaults(fn=cmd_probe)
     p = sub.add_parser('summarize'); p.add_argument('logs'); p.add_argument('out'); p.add_argument('--compare-r0', action='store_true')
+    p.add_argument('--max-diff', type=float)
     p.set_defaults(fn=cmd_summarize)
     p = sub.add_parser('timing'); p.add_argument('log'); p.set_defaults(fn=cmd_timing)
     a = ap.parse_args()

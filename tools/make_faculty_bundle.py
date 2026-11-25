@@ -36,6 +36,19 @@ On the faculty machine, in a terminal:
   bash 04_test_runs.sh              2>&1 | tee test_runs.log      # after both runs have finished
 
 Send each .log file back after its step and wait for the answer before the next step.
+
+WHEN A GPU IS BUSY WITH OTHER WORK
+Put GPUS=<free GPU number> in front of a command and it uses only that GPU, for example
+  GPUS=1 bash 02_check_port.sh 2>&1 | tee check_port.log
+Step 00 while both GPUs are busy:      GPUS=none bash 00_setup_env.sh 2>&1 | tee setup_env.log
+One free GPU and nobody watching (does steps 01, 02, a trial and the full run of R1-control, and
+stops at the first problem):
+  GPUS=1 nohup bash run_night.sh /path/to/FaceForensics > night.log 2>&1 &
+  tail -f night.log                    # Ctrl+C stops only the watching
+The second run, later, on whichever GPU is free:
+  GPUS=0 bash 03_train.sh smoke fixed 2>&1 | tee train_smoke_fixed.log
+  GPUS=0 bash 03_train.sh full fixed  2>&1 | tee train_full_fixed.log
+The two runs do not have to start together or use the same GPU; they are independent.
 /path/to/FaceForensics is the folder that contains original_sequences/ and manipulated_sequences/.
 Everything is written under ~/laa_visual. Nothing outside it is changed, except a conda
 environment called laa310 and PyTorch's download cache in ~/.cache/torch.

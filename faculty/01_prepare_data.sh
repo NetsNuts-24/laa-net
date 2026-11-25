@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Faculty machine: face crops and landmarks for R1 (train, val) and for the test check.
 # Needs: 00_setup_env.sh finished with "ENVIRONMENT OK", and the FF++ c23 videos on this machine.
-# Run:  bash 01_prepare_data.sh /path/to/FaceForensics++_C23 2>&1 | tee prepare_data.log
+# Run:  bash 01_prepare_data.sh /path/to/FaceForensics 2>&1 | tee prepare_data.log
+# One GPU only (the other is busy):  GPUS=1 bash 01_prepare_data.sh /path/to/FaceForensics ...
 # Safe to run again: finished steps are skipped.
 #
 # Downloads it makes (each approved by the user first, see DECISIONS.md):
@@ -31,8 +32,17 @@ LOGS="$WORK/prep_logs"
 DLIB_SHA=8cae4375589dd915d9a0a881101bed1bbb4e9887e35e63b024388f1ca25ff869
 TYPES="Deepfakes Face2Face FaceSwap NeuralTextures"
 
+GPUS="${GPUS:-0 1}"
+read -r -a GPU_LIST <<< "$GPUS"
+[ "${#GPU_LIST[@]}" -ge 1 ] || { echo "ERROR: GPUS is empty"; exit 1; }
+for g in "${GPU_LIST[@]}"; do
+  nvidia-smi -i "$g" > /dev/null 2>&1 || { echo "ERROR: GPU $g (from GPUS=$GPUS) does not exist"; exit 1; }
+done
+echo "using GPU(s): $GPUS"
+set +u                                                 # conda's own scripts trip over 'set -u'
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate "$ENV_NAME"
+set -u
 mkdir -p "$LOGS" "$OD"
 [ -d "$REPO/.git" ] || { echo "ERROR: $REPO missing, run 00_setup_env.sh first"; exit 1; }
 
@@ -81,7 +91,7 @@ sed -i "s#^ROOT = '/data/deepfake_cluster/datasets_df'#ROOT = '$ROOT'#; s#FaceFo
 grep -n -E "^ROOT = |^SAVE_DIR = " "$C"
 grep -q "^ROOT = '$ROOT'" "$C" && grep -q "FaceForensics++/c23'" "$C" || { echo "ERROR: path edit failed"; exit 1; }
 
-echo "== 5. face crops (GPU 0: train; GPU 1: val, then the five test folders) =="
+echo "== 5. face crops (two GPUs: train on one, val and test on the other; one GPU: one after the other) =="
 crop() {   # gpu dataset frames split
   local tag="crop_$4_$2"
   if [ -f "$LOGS/$tag.done" ]; then echo "$tag: already done"; return 0; fi
@@ -90,15 +100,20 @@ crop() {   # gpu dataset frames split
   touch "$LOGS/$tag.done"
   echo "$tag: $((SECONDS - t0)) s" | tee -a "$LOGS/times.txt"
 }
-NGPU=$(nvidia-smi -L | wc -l)
-G1=$([ "$NGPU" -ge 2 ] && echo 1 || echo 0)
-crop 0 Original 128 train &
-P0=$!
-( crop "$G1" Original 32 val; crop "$G1" Original 32 test; for t in $TYPES; do crop "$G1" "$t" 32 test; done ) &
-P1=$!
+G0="${GPU_LIST[0]}"
 FAIL=0
-wait $P0 || FAIL=1
-wait $P1 || FAIL=1
+if [ "${#GPU_LIST[@]}" -ge 2 ]; then
+  G1="${GPU_LIST[1]}"
+  crop "$G0" Original 128 train &
+  P0=$!
+  ( crop "$G1" Original 32 val; crop "$G1" Original 32 test; for t in $TYPES; do crop "$G1" "$t" 32 test; done ) &
+  P1=$!
+  wait $P0 || FAIL=1
+  wait $P1 || FAIL=1
+else
+  # short jobs first, so a problem shows up early
+  ( crop "$G0" Original 32 val; crop "$G0" Original 32 test; for t in $TYPES; do crop "$G0" "$t" 32 test; done; crop "$G0" Original 128 train ) || FAIL=1
+fi
 [ "$FAIL" -eq 0 ] || { echo "ERROR: a crop job failed, see $LOGS/crop_*.log"; tail -n 5 "$LOGS"/crop_*.log; exit 1; }
 
 echo "== 6. folder name and counts =="

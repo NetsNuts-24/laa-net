@@ -10,8 +10,21 @@ TOOL="$HERE/laa_r1.py"
 TYPES="Deepfakes Face2Face FaceSwap NeuralTextures"
 ALL_TYPES="original,Deepfakes,Face2Face,FaceSwap,NeuralTextures"
 
+# GPUs these scripts may use, e.g. GPUS=1 when GPU 0 is busy with other work. Default: both.
+GPUS="${GPUS:-0 1}"
+read -r -a GPU_LIST <<< "$GPUS"
+[ "${#GPU_LIST[@]}" -ge 1 ] || { echo "ERROR: GPUS is empty"; exit 1; }
+for g in "${GPU_LIST[@]}"; do
+  nvidia-smi -i "$g" > /dev/null 2>&1 || { echo "ERROR: GPU $g (from GPUS=$GPUS) does not exist"; exit 1; }
+done
+G_A="${GPU_LIST[0]}"
+G_B="${GPU_LIST[1]:-${GPU_LIST[0]}}"
+echo "using GPU(s): $GPUS"
+
+set +u                                                 # conda's own scripts trip over 'set -u'
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate "$ENV_NAME"
+set -u
 
 need() { [ -e "$1" ] || { echo "ERROR: missing $1 ($2)"; exit 1; }; }
 
@@ -23,7 +36,7 @@ clean_copy() {
 }
 
 # test_weights <prefix> <weights.pth> <tester_repo> <logs_dir>
-# Six test jobs on the FF++ c23 test crops, three per GPU:
+# Six test jobs on the FF++ c23 test crops (three per GPU with two GPUs, else one after the other):
 #   all_asis    official layout (the four fake versions of a pair are pooled into one video, D020)
 #   all_unique  every video scored separately
 #   one job per fake type against the 140 real videos
@@ -41,13 +54,18 @@ test_weights() {
     grep -q "Current ACC" "$log" || { echo "ERROR: $prefix.$2 gave no result, see $log"; tail -n 5 "$log"; return 1; }
     echo "$prefix.$2: done in $((SECONDS - t0)) s on GPU $1"
   }
-  local g1=$([ "$(nvidia-smi -L | wc -l)" -ge 2 ] && echo 1 || echo 0)
-  ( one 0 all_asis "$SAVE" "$ALL_TYPES" && one 0 Deepfakes "$SAVE" original,Deepfakes && one 0 FaceSwap "$SAVE" original,FaceSwap ) &
-  local p0=$!
-  ( one "$g1" all_unique "$uroot" "$ALL_TYPES" && one "$g1" Face2Face "$SAVE" original,Face2Face && one "$g1" NeuralTextures "$SAVE" original,NeuralTextures ) &
-  local p1=$!
   local fail=0
-  wait $p0 || fail=1
-  wait $p1 || fail=1
+  if [ "${#GPU_LIST[@]}" -ge 2 ]; then
+    ( one "$G_A" all_asis "$SAVE" "$ALL_TYPES" && one "$G_A" Deepfakes "$SAVE" original,Deepfakes && one "$G_A" FaceSwap "$SAVE" original,FaceSwap ) &
+    local p0=$!
+    ( one "$G_B" all_unique "$uroot" "$ALL_TYPES" && one "$G_B" Face2Face "$SAVE" original,Face2Face && one "$G_B" NeuralTextures "$SAVE" original,NeuralTextures ) &
+    local p1=$!
+    wait $p0 || fail=1
+    wait $p1 || fail=1
+  else
+    one "$G_A" all_asis "$SAVE" "$ALL_TYPES" || fail=1
+    one "$G_A" all_unique "$uroot" "$ALL_TYPES" || fail=1
+    for t in $TYPES; do one "$G_A" "$t" "$SAVE" "original,$t" || fail=1; done
+  fi
   return $fail
 }
